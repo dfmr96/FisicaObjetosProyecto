@@ -1,13 +1,13 @@
 var canvasWidth = 500;
 var canvasHeight = 720;
 
-var gravity = 200;
+var gravity = 10;
 var enemy = 
 {
   pos: {x: canvasWidth/2, y:0},
   vel: {x: 0, y: 0},
   accel: {x: 0, y: 0},
-  mass: 1,
+  mass: 10,
   radius: 30
 }
 
@@ -19,6 +19,8 @@ var bullet = {
   velAng: 0,
   accAng: 0,
   radius: 5,
+  mass: 1,
+  loaded: false
 }
 
 var cannon = 
@@ -43,8 +45,9 @@ function draw() {
   //Fisicas
   var dt = deltaTime / 1000;
   //Aplicar Peso
-  ApplyForce(enemy,force = {x: 0, y:2});
-
+  //ApplyForce(enemy,force = {x: 0, y:2});
+  ApplyGravity(enemy);
+  if (bullet.loaded) ApplyGravity(bullet)
 
   //Detectar Input
 
@@ -56,11 +59,12 @@ var cannonHeight = sin(cannon.ang) * cannon.length;
   //Calculo de fisicas
   PhysicsCal(enemy, dt);
   PhysicsCal(bullet,dt);
-  console.log(cannon.ang);
+  //console.log(cannon.ang);
 
   //Calculo Colisiones
   MapBounds(enemy);
   //Dibujado
+  console.log(bullet.pos);
   circle(bullet.pos.x,bullet.pos.y, bullet.radius * 2);
   circle(enemy.pos.x,enemy.pos.y,enemy.radius * 2);
   line(cannon.pos.x, cannon.pos.y, cannon.pos.x + cannonWidth, cannon.pos.y + cannonHeight);
@@ -75,13 +79,18 @@ function RotateCannon(dt) {
 
 function Shoot(a,b) {
   if (keyIsDown(32)){
+    bullet.vel.x = 0;
+    bullet.vel.y = 0;
+    bullet.accel.x = 0;
+    bullet.accel.y = 0;
     bullet.pos.x = cannon.pos.x + a;
     bullet.pos.y = cannon.pos.y + b;
-
-    cannonDirX = cos(cannon.ang);
-    cannonDirY = sin(cannon.ang);
-    bullet.vel.x = cannonDirX * 500;
-    bullet.vel.y = cannonDirY * 500;
+    bullet.loaded = true;
+    var dif = restar (bullet.pos, cannon.pos);
+    var dir = normalizado(dif);
+    //bullet.vel.x = cannonDirX * 500;
+    //bullet.vel.y = cannonDirY * 500;
+    ApplyImpulse(bullet, mul(dir, 400));
   }
   
 }
@@ -111,8 +120,13 @@ function ApplyForce(object, force)
   object.accel = sumar(object.accel, division(force, object.mass));
 }
 
-function ApplyImpulse(cuerpo, impulso) {
-  cuerpo.vel = sumar(cuerpo.vel,division(impulso, cuerpo.masa))
+function ApplyGravity(object)
+{
+  object.accel.y = object.mass * gravity;
+}
+
+function ApplyImpulse(object, impulse) {
+  object.vel = sumar(object.vel,division(impulse, object.mass))
 }
 
 function MapBounds(object) {
