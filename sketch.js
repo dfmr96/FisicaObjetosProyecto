@@ -1,23 +1,13 @@
 var canvasWidth = 500;
 var canvasHeight = 720;
 var enemyRadius = 50;
-var fireRate = 1;
+var fireRate = 2;
 var fireRateCounter = 0;
+var enemySpawnRate = 0.5;
+var enemySpawnCounter = 0;
 var gravity = 10;
 var enemies = [];
 var bullets = [];
-
-/* var bullet = {
-  pos: { x: 5, y: canvasHeight - 5 },
-  vel: { x: 0, y: 0 },
-  accel: { x: 0, y: 0 },
-  ang: 0,
-  velAng: 0,
-  accAng: 0,
-  radius: 5,
-  mass: 1,
-  loaded: false
-}; */
 
 var cannon =
 {
@@ -26,7 +16,7 @@ var cannon =
   accel: { x: 0, y: 0 },
   length: 50,
   ang: -90,
-  velAng: 180,
+  velAng: 60,
   accAng: 0
 };
 
@@ -45,6 +35,13 @@ function draw() {
   var dt = deltaTime / 1000;
 
   fireRateCounter += dt;
+  enemySpawnCounter += dt;
+
+  if (enemySpawnCounter > 1 / enemySpawnRate) {
+     CreateEnemy(RandomPos(), random(15,30) , random(10,20));
+    console.log(enemies);
+  }
+
   //Aplicar Peso
   //ApplyForce(enemy,force = {x: 0, y:2});
   for (var i = 0; i < enemies.length; i++) {
@@ -89,11 +86,22 @@ function draw() {
     if (bullets[i].isActive) circle(bullets[i].pos.x, bullets[i].pos.y, bullets[i].radius * 2);
   }
   //circle(enemy.pos.x,enemy.pos.y,enemy.radius * 2);
+  strokeWeight(1);
+  stroke(255,0,0)
+  line(cannon.pos.x, cannon.pos.y, cannon.pos.x + cannonWidth * 100, cannon.pos.y + cannonHeight * 100);
+  strokeWeight(20);
+  stroke(0,0,0)
   line(cannon.pos.x, cannon.pos.y, cannon.pos.x + cannonWidth, cannon.pos.y + cannonHeight);
-
+  strokeWeight(1);
   for (var i = 0; i < enemies.length; i++) {
     if (enemies[i].isActive) circle(enemies[i].pos.x, enemies[i].pos.y, enemies[i].radius * 2);
   }
+}
+
+function RandomPos() {
+  var horizontalBorder = 20;
+  var randomPos = {x: random(horizontalBorder, width - horizontalBorder), y: -20}
+  return randomPos;
 }
 
 function ResolveCircleCollision(bullet) {
@@ -111,20 +119,22 @@ function ResolveCircleCollision(bullet) {
   }
 }
 
-function CreateEnemy(pos, vel, radius, mass) {
+function CreateEnemy(pos, radius, mass) {
+  enemySpawnCounter = 0;
   for (var i = 0; i < enemies.length; i++) {
     if (!enemies[i].isActive) {
       enemies[i].pos = pos;
-      enemies[i].vel = vel;
+      enemies[i].vel = {x: 0, y:0};
       enemies[i].mass = mass
       enemies[i].radius = radius;
       enemies[i].isActive = true;
+      
       return // return enemies[i]
     }
   }
   var newEnemy = {
     pos: pos,
-    vel: vel,
+    vel: {x: 0, y:0},
     accel: { x: 0, y: 0 },
     mass: mass,
     radius: radius,
