@@ -3,7 +3,6 @@ var canvasHeight = 720;
 var enemyRadius = 50;
 var gravity = 10;
 var enemies = [];
-var totalEnemies = 4;
 
 var bullet = {
   pos: {x: 5, y: canvasHeight - 5},
@@ -32,9 +31,7 @@ function setup() {
   createCanvas(canvasWidth,canvasHeight);
   angleMode(DEGREES)
 
-  for (var i = 0; i < totalEnemies; i++) {
-    CreateEnemy();
-  }
+  CreateEnemy({x: width/2, y:0}, {x: 0, y:0}, 10,1);
   console.log(enemies);
 }
 //DRAW
@@ -45,8 +42,8 @@ function draw() {
   var dt = deltaTime / 1000;
   //Aplicar Peso
   //ApplyForce(enemy,force = {x: 0, y:2});
-  for (var i = 0; i < totalEnemies;i++) {
-    ApplyGravity(enemies[i]);
+  for (var i = 0; i < enemies.length;i++) {
+    if (enemies[i].isActive) ApplyGravity(enemies[i]);
   }
   if (bullet.loaded) ApplyGravity(bullet)
 
@@ -60,10 +57,12 @@ function draw() {
   //Calculo de fisicas
   PhysicsCal(bullet,dt);
 
-  for (var i = 0; i < totalEnemies; i++) {
-    ResolveCircleCollision(bullet, enemies[i]);
-    PhysicsCal(enemies[i], dt);
-    MapBounds(enemies[i]);
+  for (var i = 0; i < enemies.length; i++) {
+    if (enemies[i].isActive){
+      ResolveCircleCollision(bullet, enemies[i]);
+      PhysicsCal(enemies[i], dt);
+      MapBounds(enemies[i]);
+    }
   }
   //console.log(cannon.ang);
 
@@ -75,8 +74,8 @@ function draw() {
   //circle(enemy.pos.x,enemy.pos.y,enemy.radius * 2);
   line(cannon.pos.x, cannon.pos.y, cannon.pos.x + cannonWidth, cannon.pos.y + cannonHeight);
 
-  for (var i = 0; i < totalEnemies; i++) {
-    circle(enemies[i].pos.x, enemies[i].pos.y, enemies[i].radius * 2)
+  for (var i = 0; i < enemies.length; i++) {
+    if (enemies[i].isActive) circle(enemies[i].pos.x, enemies[i].pos.y, enemies[i].radius * 2);
   }
 }
 
@@ -84,18 +83,29 @@ function ResolveCircleCollision(bullet, enemy) {
   var dif = restar(bullet.pos, enemy.pos);
   var dist = magnitud(dif);
   if (dist < bullet.radius + enemy.radius) {
-    //Destroy Enemy
+    enemy.isActive = false;
     console.log("Destruir enemigo");
   }
 }
 
-function CreateEnemy() {
+function CreateEnemy(pos, vel, radius, mass) {
+   for (var i = 0; i < enemies.length; i++) {
+    if (!enemies[i].isActive) {
+      enemies[i].pos = pos;
+      enemies[i].vel = vel;
+      enemies[i].mass = mass
+      enemies[i].radius = radius;
+      enemies[i].isActive = true;
+      return // return enemies[i]
+    }
+   }
   var newEnemy = {
-  pos: {x: random(enemyRadius, enemyRadius + canvasWidth/2), y:0},
-  vel: {x: 0, y: 0},
+  pos: pos,
+  vel: vel,
   accel: {x: 0, y: 0},
-  mass: 10,
-  radius: enemyRadius
+  mass: mass,
+  radius: radius,
+  isActive: true
   }
   enemies.push(newEnemy);
 }
