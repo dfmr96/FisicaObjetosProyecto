@@ -8,6 +8,12 @@ var enemySpawnCounter = 0;
 var gravity = 10;
 var enemies = [];
 var bullets = [];
+var points = 0;
+var lives = 3;
+var blinkTimer = 0;
+var blinkRate = 0.5;
+var blankString = false;
+var pressStartText = "";
 
 var cannon =
 {
@@ -20,92 +26,165 @@ var cannon =
   accAng: 0
 };
 
+var _state;
+const State = {
+  PressStart: 0,
+  Gameplay: 1,
+  GameOver: 2,
+}
+
 function setup() {
   createCanvas(canvasWidth, canvasHeight);
   angleMode(DEGREES)
-
-  CreateEnemy({ x: width / 2, y: 0 }, { x: 0, y: 0 }, 10, 1);
-  console.log(enemies);
+  _state = State.PressStart;
 }
-//DRAW
+
 function draw() {
   background(220);
-
-  //Fisicas
   var dt = deltaTime / 1000;
 
-  fireRateCounter += dt;
-  enemySpawnCounter += dt;
+  switch (_state) {
+    case State.PressStart:
+      blinkTimer += dt;
+      PressStartBlinker();
+      DrawMainScreen();
+      if (keyIsDown(ENTER)) _state = State.Gameplay;
+      break;
 
-  if (enemySpawnCounter > 1 / enemySpawnRate) {
-     CreateEnemy(RandomPos(), random(15,30) , random(10,20));
-    console.log(enemies);
+    case State.Gameplay:
+      //Counters
+      fireRateCounter += dt;
+      enemySpawnCounter += dt;
+
+      //Spawner
+      EnemySpawner();
+
+      //Gravity
+      ApplyGravityToAllBodies();
+
+      //Input Detection
+      RotateCannon(dt);
+      var cannonWidth = cos(cannon.ang) * cannon.length;
+      var cannonHeight = sin(cannon.ang) * cannon.length;
+      Shoot(cannonWidth, cannonHeight);
+
+      //Physics Calc
+      PhysicsCalToAllBodies(dt);
+
+      //DRAW
+      DrawUI();
+      DrawBullets();
+      DrawLaser(cannonWidth, cannonHeight);
+      DrawCannon(cannonWidth, cannonHeight);
+      DrawEnemies();
+      break;
+
+    case State.GameOver:
+      DrawGameOverUI();
+      break;
+  }
+}
+
+function DrawGameOverUI() {
+  textAlign(CENTER);
+  textSize(58);
+  text("GAME OVER", width / 2, height / 4);
+  textSize(48);
+  text("Total Points: " + points, width / 2, height * 3 / 4);
+}
+
+function PhysicsCalToAllBodies(dt) {
+  for (var i = 0; i < bullets.length; i++) {
+    if (bullets[i].isActive) {
+      PhysicsCal(bullets[i], dt);
+      ResolveCircleCollision(bullets[i]);
+      CheckOffBounds(bullets[i]);
+    }
   }
 
-  //Aplicar Peso
-  //ApplyForce(enemy,force = {x: 0, y:2});
+  for (var i = 0; i < enemies.length; i++) {
+    if (enemies[i].isActive) {
+      PhysicsCal(enemies[i], dt);
+      CheckEnemyOffBounds(enemies[i]);
+    }
+  }
+}
+
+function ApplyGravityToAllBodies() {
   for (var i = 0; i < enemies.length; i++) {
     if (enemies[i].isActive) ApplyGravity(enemies[i]);
   }
   for (var i = 0; i < bullets.length; i++) {
     if (bullets[i].isActive) ApplyGravity(bullets[i]);
   }
+}
 
+function EnemySpawner() {
+  if (enemySpawnCounter > 1 / enemySpawnRate) {
+    CreateEnemy(RandomPos(), random(15, 30), random(10, 20), random(0, 250));
+    //console.log(enemies);
+  }
+}
 
-  //Detectar Input
+function DrawMainScreen() {
+  textAlign(CENTER);
+  textSize(58);
+  text("Cannon Defender", width / 2, height / 4);
+  textSize(48);
+  text(pressStartText, width / 2, height * 3 / 4);
+}
 
-  RotateCannon(dt);
-
-  var cannonWidth = cos(cannon.ang) * cannon.length;
-  var cannonHeight = sin(cannon.ang) * cannon.length;
-  Shoot(cannonWidth, cannonHeight);
-  //Calculo de fisicas
-  for (var i = 0; i < bullets.length; i++) {
-    if (bullets[i].isActive) {
-      PhysicsCal(bullets[i], dt);
-      ResolveCircleCollision(bullets[i]);
-      CheckBounds(bullets[i]);
-    }
+function PressStartBlinker() {
+  if (blinkTimer > blinkRate) {
+    blankString = !blankString;
+    blinkTimer = 0;
   }
 
-
-  for (var i = 0; i < enemies.length; i++) {
-    if (enemies[i].isActive) {
-      PhysicsCal(enemies[i], dt);
-      MapBounds(enemies[i]);
-    }
+  if (blankString) {
+    pressStartText = ""
+  } else {
+    pressStartText = "Press Start"
   }
-  //console.log(cannon.ang);
+}
+function DrawUI() {
+  textAlign(LEFT, BOTTOM);
+  textSize(15);
+  text("Lives " + lives, 0, height)
+  text("Points: " + points, 0, height - 20);
+}
 
-  //Calculo Colisiones
-  //MapBounds(enemy);
-  //Dibujado
-  //console.log(bullet.pos);
-
+function DrawBullets() {
+  strokeWeight(1);
   for (var i = 0; i < bullets.length; i++) {
     if (bullets[i].isActive) circle(bullets[i].pos.x, bullets[i].pos.y, bullets[i].radius * 2);
   }
-  //circle(enemy.pos.x,enemy.pos.y,enemy.radius * 2);
-  strokeWeight(1);
-  stroke(255,0,0)
-  line(cannon.pos.x, cannon.pos.y, cannon.pos.x + cannonWidth * 100, cannon.pos.y + cannonHeight * 100);
-  strokeWeight(20);
-  stroke(0,0,0)
-  line(cannon.pos.x, cannon.pos.y, cannon.pos.x + cannonWidth, cannon.pos.y + cannonHeight);
+}
+function DrawEnemies() {
   strokeWeight(1);
   for (var i = 0; i < enemies.length; i++) {
     if (enemies[i].isActive) circle(enemies[i].pos.x, enemies[i].pos.y, enemies[i].radius * 2);
   }
 }
 
+function DrawCannon(cannonWidth, cannonHeight) {
+  strokeWeight(20);
+  stroke(0, 0, 0);
+  line(cannon.pos.x, cannon.pos.y, cannon.pos.x + cannonWidth, cannon.pos.y + cannonHeight);
+}
+
+function DrawLaser(cannonWidth, cannonHeight) {
+  strokeWeight(1);
+  stroke(255, 0, 0);
+  line(cannon.pos.x, cannon.pos.y, cannon.pos.x + cannonWidth * 100, cannon.pos.y + cannonHeight * 100);
+}
+
 function RandomPos() {
-  var horizontalBorder = 20;
-  var randomPos = {x: random(horizontalBorder, width - horizontalBorder), y: -20}
+  var offSet = 20;
+  var randomPos = { x: random(offSet, width - offSet), y: -offSet }
   return randomPos;
 }
 
 function ResolveCircleCollision(bullet) {
-
 
   for (var i = 0; i < enemies.length; i++) {
     if (!enemies[i].isActive) continue
@@ -114,33 +193,34 @@ function ResolveCircleCollision(bullet) {
     if (dist < bullet.radius + enemies[i].radius) {
       enemies[i].isActive = false;
       bullet.isActive = false;
-      console.log("Destruir enemigo");
+      points++;
     }
   }
 }
 
-function CreateEnemy(pos, radius, mass) {
+function CreateEnemy(pos, radius, mass, velY) {
   enemySpawnCounter = 0;
   for (var i = 0; i < enemies.length; i++) {
     if (!enemies[i].isActive) {
       enemies[i].pos = pos;
-      enemies[i].vel = {x: 0, y:0};
+      enemies[i].vel = { x: 0, y: velY };
       enemies[i].mass = mass
       enemies[i].radius = radius;
       enemies[i].isActive = true;
-      
+
       return // return enemies[i]
     }
   }
   var newEnemy = {
     pos: pos,
-    vel: {x: 0, y:0},
+    vel: { x: 0, y: velY },
     accel: { x: 0, y: 0 },
     mass: mass,
     radius: radius,
     isActive: true
   }
   enemies.push(newEnemy);
+  return newEnemy;
 }
 
 function CreateBullet(pos) {
@@ -179,20 +259,17 @@ function RotateCannon(dt) {
 }
 
 function Shoot(a, b) {
-  if (keyIsDown(32) && fireRateCounter > 1/fireRate) {
+  if (keyIsDown(32) && fireRateCounter > 1 / fireRate) {
     var bullet = CreateBullet({ x: cannon.pos.x + a, y: cannon.pos.y + b })
-    //bullet.loaded = true;
     var dif = restar(bullet.pos, cannon.pos);
     var dir = normalizado(dif);
-    //bullet.vel.x = cannonDirX * 500;
-    //bullet.vel.y = cannonDirY * 500;
     ApplyImpulse(bullet, mul(dir, 400));
     fireRateCounter = 0;
     console.log(bullets);
   }
 }
 
-function CheckBounds(object){
+function CheckOffBounds(object) {
   if (object.pos.x > width - object.radius) {
     object.isActive = false;
   }
@@ -205,27 +282,19 @@ function CheckBounds(object){
   if (object.pos.y > height + object.radius) {
     object.isActive = false;
   }
-
-}
-
-function magnitude(vector) {
-  return sqrt(vector.x * vector.x + vector.y * vector.y)
 }
 
 function PhysicsCal(object, dt) {
 
   object.vel = sumar(object.vel, mul(object.accel, dt))
-
   object.pos = sumar3(object.pos, mul(object.vel, dt), mul(object.accel, dt * dt * 0.5));
 
-  object.ax = 0;
-  object.ay = 0;
+  object.accel.x = 0;
+  object.accel.y = 0;
 
   object.velAng += object.accAng * dt;
   object.ang += object.velAng * dt;
-
   object.accAng = 0;
-
 }
 
 function ApplyForce(object, force) {
@@ -240,17 +309,24 @@ function ApplyImpulse(object, impulse) {
   object.vel = sumar(object.vel, division(impulse, object.mass))
 }
 
-function MapBounds(object) {
+function CheckEnemyOffBounds(object) {
+  if (object.pos.y > height + object.radius) {
+    object.isActive = false;
+    lives--;
+    if (lives <= 0) {
+      _state = State.GameOver;
+      console.log("GAMEOVER");
+    }
+    //console.log(enemies);
+  }
   if (object.pos.x < object.radius) {
     object.vel.x = abs(object.vel.x);
   }
-
   if (object.pos.x > height - object.radius) {
     object.vel.x = -abs(object.vel.x)
   }
-
   if (object.pos.y > height - object.radius) {
-    console.log("limite inferior");
+    //console.log("limite inferior");
     object.accel.y = 0;
     object.vel.y = 0;
     object.vel.y = height - object.radius;
